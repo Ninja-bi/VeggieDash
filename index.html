@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vegetarian Food Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <aside class="sidebar">
+        <a href="#" class="logo">
+            <i class="ph-fill ph-leaf"></i>
+            VeggieDash
+        </a>
+        <nav class="nav-links">
+            <a class="nav-link active" data-target="dashboard">
+                <i class="ph ph-squares-four"></i>
+                Dashboard
+            </a>
+            <a class="nav-link" data-target="diary">
+                <i class="ph ph-calendar-check"></i>
+                Diary & Goals
+            </a>
+            <a class="nav-link" data-target="trends">
+                <i class="ph ph-chart-line-up"></i>
+                Trends
+            </a>
+            <a class="nav-link" data-target="workouts">
+                <i class="ph ph-barbell"></i>
+                Workouts
+            </a>
+            <a class="nav-link" data-target="database">
+                <i class="ph ph-database"></i>
+                Food Database
+            </a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <div class="header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h1 id="page-title">Dashboard</h1>
+            <div class="auth-container">
+                <button id="auth-btn" class="auth-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); border-radius: 8px; cursor: pointer;">
+                    <i class="ph-bold ph-google-logo"></i>
+                    <span id="auth-text">Sign In</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard View -->
+        <section id="dashboard" class="view active">
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-title">Total Foods</div>
+                    <div class="kpi-value" id="kpi-total">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Avg Calories</div>
+                    <div class="kpi-value" id="kpi-calories">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Avg Protein (g)</div>
+                    <div class="kpi-value" id="kpi-protein">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Top Category</div>
+                    <div class="kpi-value" id="kpi-category" style="font-size: 1.5rem; line-height: 2.25rem;">-</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Average Calories by Category</h3>
+                    <div class="chart-container">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Macronutrients Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="doughnutChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Database View -->
+        <section id="database" class="view">
+            <div class="controls">
+                <div class="search-box">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="text" id="searchInput" placeholder="Search foods by name...">
+                </div>
+                <select id="categoryFilter">
+                    <option value="all">All Categories</option>
+                    <!-- Categories injected by JS -->
+                </select>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Food Name</th>
+                            <th>Category</th>
+                            <th>Calories</th>
+                            <th>Protein (g)</th>
+                            <th>Carbs (g)</th>
+                            <th>Fat (g)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Rows injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Diary & Goals View -->
+        <section id="diary" class="view">
+            <!-- Date Navigation Header -->
+            <div class="date-header">
+                <button id="prev-day-btn" class="date-btn"><i class="ph-bold ph-caret-left"></i></button>
+                <h2 id="current-date-display">Today</h2>
+                <button id="next-day-btn" class="date-btn" disabled><i class="ph-bold ph-caret-right"></i></button>
+            </div>
+
+            <!-- V3: Recommendations -->
+            <div class="recommendation-card" id="recommendation-panel">
+                <div class="rec-icon"><i class="ph-fill ph-lightbulb"></i></div>
+                <div class="rec-text" id="rec-text">Log some food to get recommendations!</div>
+            </div>
+
+            <div class="goals-container">
+                <div class="goal-card">
+                    <h3>Daily Calories</h3>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="cal-progress"></div>
+                    </div>
+                    <div class="goal-text"><span id="cal-current">0</span> / 2700 kcal</div>
+                </div>
+                <div class="goal-card">
+                    <h3>Daily Protein</h3>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="protein-progress" style="background: var(--grad-3);"></div>
+                    </div>
+                    <div class="goal-text"><span id="protein-current">0</span> / 100 g</div>
+                </div>
+            </div>
+
+            <!-- V3: Interactive Meals -->
+            <div class="meals-container">
+                <div class="meal-card">
+                    <div class="meal-header">
+                        <h3>Breakfast</h3>
+                        <span class="meal-cals" id="cals-Breakfast">0 kcal</span>
+                    </div>
+                    <ul class="meal-items" id="list-Breakfast"></ul>
+                    <button class="add-food-btn" data-meal="Breakfast">
+                        <i class="ph ph-plus-circle"></i> Add Food
+                    </button>
+                </div>
+                <div class="meal-card">
+                    <div class="meal-header">
+                        <h3>Lunch</h3>
+                        <span class="meal-cals" id="cals-Lunch">0 kcal</span>
+                    </div>
+                    <ul class="meal-items" id="list-Lunch"></ul>
+                    <button class="add-food-btn" data-meal="Lunch">
+                        <i class="ph ph-plus-circle"></i> Add Food
+                    </button>
+                </div>
+                <div class="meal-card">
+                    <div class="meal-header">
+                        <h3>Dinner</h3>
+                        <span class="meal-cals" id="cals-Dinner">0 kcal</span>
+                    </div>
+                    <ul class="meal-items" id="list-Dinner"></ul>
+                    <button class="add-food-btn" data-meal="Dinner">
+                        <i class="ph ph-plus-circle"></i> Add Food
+                    </button>
+                </div>
+                <div class="meal-card">
+                    <div class="meal-header">
+                        <h3>Snacks</h3>
+                        <span class="meal-cals" id="cals-Snacks">0 kcal</span>
+                    </div>
+                    <ul class="meal-items" id="list-Snacks"></ul>
+                    <button class="add-food-btn" data-meal="Snacks">
+                        <i class="ph ph-plus-circle"></i> Add Food
+                    </button>
+                </div>
+            </div>
+
+            <div class="tracker-card">
+                <h3>365-Day Consistency</h3>
+                <div class="heatmap-container" id="heatmap">
+                    <!-- Grid injected by JS -->
+                </div>
+                <div class="heatmap-legend">
+                    <span>Less</span>
+                    <div class="legend-box level-0"></div>
+                    <div class="legend-box level-1"></div>
+                    <div class="legend-box level-2"></div>
+                    <div class="legend-box level-3"></div>
+                    <div class="legend-box level-4"></div>
+                    <span>More</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Trends View -->
+        <section id="trends" class="view">
+            <div class="charts-grid" style="grid-template-columns: 1fr; margin-bottom: 1.5rem;">
+                <div class="chart-card">
+                    <h3>Weight Trend (Last 30 Days)</h3>
+                    <div class="chart-container">
+                        <canvas id="weightChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Weekly Calories</h3>
+                    <div class="chart-container">
+                        <canvas id="weeklyCalChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Weekly Protein (g)</h3>
+                    <div class="chart-container">
+                        <canvas id="weeklyProteinChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Workouts View -->
+        <section id="workouts" class="view">
+            <div class="workout-grid" id="workoutGrid">
+                <!-- Cards injected by JS -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Food Search Modal -->
+    <div class="modal-overlay" id="foodModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalMealName">Add Food</h3>
+                <button class="close-btn" id="closeModal"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-search">
+                <i class="ph ph-magnifying-glass"></i>
+                <input type="text" id="foodSearchInput" placeholder="Search 200+ foods..." autocomplete="off">
+            </div>
+            <div class="search-results" id="searchResults">
+                <!-- Results injected by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
